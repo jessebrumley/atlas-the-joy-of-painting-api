@@ -13,31 +13,63 @@ db_config = {
 
 @app.route('/episodes', methods=['GET'])
 def get_episodes():
-    # Connect to the database
+    # Establish a new database connection for the request
     conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
-    # Extract the 'month' query parameter
-    month = request.args.get('month')  # E.g., "January"
-
-    # SQL query to filter episodes by month
-    if month:
-        sql_query = """
-        SELECT episode_id, episode, title, date
-        FROM episodes
-        WHERE MONTHNAME(date) = %s
+    try:
+        # Get query parameters
+        month = request.args.get('month')
+        subjects = request.args.get('subject')  # Get 'subject' query parameter (e.g., 'mountain,lake')
+        
+        # Start building the SQL query
+        query = """
+            SELECT DISTINCT episodes.episode_id, episodes.episode, episodes.title, episodes.date
+            FROM episodes
         """
-        cursor.execute(sql_query, (month,))
-    else:
-        sql_query = "SELECT episode_id, episode, title, date FROM episodes"
-        cursor.execute(sql_query)
+        params = []
 
-    # Fetch results and return as JSON
-    episodes = cursor.fetchall()
-    cursor.close()
-    conn.close()
+        # Add subject filtering if requested
+        if subjects:
+            subject_list = subjects.split(",")  # Split subjects into a list
+            placeholders = ", ".join(["%s"] * len(subject_list))
+            query += """
+                JOIN episode_subjects ON episodes.episode_id = episode_subjects.episode_id
+                JOIN subjects ON episode_subjects.subject_id = subjects.subject_id
+                WHERE subjects.subject_name IN ({})
+            """.format(placeholders)
+            params.extend(subject_list)
 
-    return jsonify(episodes)
+        # Add month filtering if requested
+        if month:
+            if "WHERE" not in query:
+                query += " WHERE"
+            else:
+                query += " AND"
+            query += " MONTH(episodes.date) = %s"
+            params.append(month)
+
+        query += " ORDER BY episodes.date"
+
+        # Execute the query
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+
+        # Format the results as JSON
+        episodes = [
+            {
+                "episode_id": row[0],
+                "episode": row[1],
+                "title": row[2],
+                "date": row[3]
+            }
+            for row in results
+        ]
+        return jsonify(episodes)
+    finally:
+        # Close the database connection
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
