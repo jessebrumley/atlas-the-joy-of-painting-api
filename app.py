@@ -19,13 +19,19 @@ def get_episodes():
 
     try:
         # Get query parameters
-        month = request.args.get('month')
-        subjects = request.args.get('subject')  # Get 'subject' query parameter (e.g., 'mountain,lake')
-        
+        month = request.args.get('month')  # e.g., '1' for January
+        subjects = request.args.get('subject')  # e.g., 'mountain,lake'
+        colors = request.args.get('color')  # e.g., 'blue,green'
+
         # Start building the SQL query
         query = """
             SELECT DISTINCT episodes.episode_id, episodes.episode, episodes.title, episodes.date
             FROM episodes
+            JOIN paintings ON episodes.episode_id = paintings.episode
+            JOIN painting_colors ON paintings.painting_id = painting_colors.painting_id
+            JOIN colors ON painting_colors.color_id = colors.color_id
+            JOIN episode_subjects ON episodes.episode_id = episode_subjects.episode_id
+            JOIN subjects ON episode_subjects.subject_id = subjects.subject_id
         """
         params = []
 
@@ -34,11 +40,22 @@ def get_episodes():
             subject_list = subjects.split(",")  # Split subjects into a list
             placeholders = ", ".join(["%s"] * len(subject_list))
             query += """
-                JOIN episode_subjects ON episodes.episode_id = episode_subjects.episode_id
-                JOIN subjects ON episode_subjects.subject_id = subjects.subject_id
                 WHERE subjects.subject_name IN ({})
             """.format(placeholders)
             params.extend(subject_list)
+
+        # Add color filtering if requested
+        if colors:
+            color_list = colors.split(",")  # Split colors into a list
+            color_placeholders = ", ".join(["%s"] * len(color_list))
+            if "WHERE" not in query:
+                query += " WHERE"
+            else:
+                query += " AND"
+            query += """
+                colors.color_name IN ({})
+            """.format(color_placeholders)
+            params.extend(color_list)
 
         # Add month filtering if requested
         if month:
