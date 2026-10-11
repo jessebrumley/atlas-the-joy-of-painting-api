@@ -1,68 +1,61 @@
-# Bob Ross Paintings API
+# Bob Ross Paintings: ETL Pipeline & REST API
 
-This project provides an API to retrieve information about Bob Ross's painting episodes. The API allows filtering episodes by various criteria such as subject matter, color palette, and the month of the original broadcast. 
+A full-stack data engineering project that ingests raw, unstructured Bob Ross painting datasets, transforms them through a custom Python ETL pipeline, loads them into a fully normalized relational MySQL database, and exposes the data via a Flask REST API.
 
-## Features
+This project was built to demonstrate proficiency in data ingestion, file parsing, schema normalization, and backend API design.
 
-- **Filter by month**: Filter episodes by the month of the original broadcast (numeric or name).
-- **Filter by subject**: Filter episodes by specific subjects (e.g., mountain, lake, tree).
-- **Filter by color**: Filter episodes by colors used in the paintings (e.g., black gesso, bright red).
-- **Filter logic**: Support for filtering episodes by all or any of the given criteria.
-- **Database-backed**: Uses a MySQL database to store and retrieve episode data.
+---
 
-## Prerequisites
+## Architecture & Tech Stack
 
-To run this project locally, you'll need:
+* **Language:** Python 3.x
+* **Framework:** Flask (REST API)
+* **Database & Management:** MySQL, Relational Database Design (RDBMS)
+* **Data Handling:** Pandas / Custom Python File Parsing (JSON, CSV, unstructured text)
+* **Workflow & Tools:** Git, GitHub, Linux/Unix CLI
 
-- Python 3.x
-- Flask
-- MySQL (or MariaDB)
-- MySQL connector for Python
+---
 
-## Setup Instructions
+## Data Pipeline & ETL Architecture
 
-1. Clone the repository:
+To convert disparate, untyped source datasets into structured relational tables, this project implements a custom extraction and transformation pipeline located in `/etl_data_transformation`:
 
-    ```bash
-    git clone <repository-url>
-    cd bob-ross-paintings-api
-    ```
+1. **Ingestion & Parsing (`/scripts`)**: Custom Python scripts (`parse_colors.py`, `parse_episodes.py`, `parse_subjects.py`) ingest raw multi-source text and flat files, executing string cleaning, type casting, and data validation.
+2. **Staging & Intermediate Transformation**: Cleaned records are normalized into intermediate CSV structures (`/data`) to eliminate anomalies, check for duplication, and format datetime objects.
+3. **Database Loading**: Processed datasets are loaded into a normalized relational schema with strict data types, primary keys, and foreign key constraints.
 
-2. Install the required Python packages:
+---
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Database Schema & Normalization
 
-3. Set up the MySQL database:
+To eliminate data redundancy and maintain referential integrity, the raw data is structured across normalized tables:
 
-    - Make sure you have a MySQL server running.
-    - Create a database called `bob_ross_paintings` (or update `db_config` in `app.py` with your own database credentials).
-    - Populate the database with relevant tables (`episodes`, `paintings`, `painting_colors`, `colors`, `episode_subjects`, `subjects`).
+* **`episodes`**: Stores broadcast metadata (Episode ID, Code, Title, Date).
+* **`paintings`**: Stores visual and media assets (Painting ID, Image URL, Title, Season, Episode reference, Color Count, YouTube Embed).
+* **`colors`**: Normalized master list of unique oil paint colors and their HEX codes.
+* **`subjects`**: Normalized master list of painting visual subjects (e.g., mountains, lakes, cabins).
+* **Junction / Bridging Tables**: 
+  * `painting_colors`: Manages the many-to-many relationship between paintings and multiple paint colors.
+  * `episode_subjects`: Manages the many-to-many relationship between episodes and multiple subject categories.
 
-4. Run the Flask application:
+---
 
-    ```bash
-    python app.py
-    ```
+## API Endpoints & Query Filtering
 
-5. The API will be accessible at `http://localhost:5000`.
-
-## API Endpoints
+The Flask backend (`app.py`) provides a query-driven REST endpoint supporting multi-parameter filtering, custom logical operators (`any` vs `all`), and robust error handling.
 
 ### Get Episodes
+* **URL:** `/episodes`
+* **Method:** `GET`
+* **Query Parameters:**
+  * `month`: Month number (`1-12`) or full name (e.g., `"January"`).
+  * `subject`: Comma-separated list of subjects (e.g., `"mountain,lake"`).
+  * `color`: Comma-separated list of colors (e.g., `"black_gesso,bright_red"`).
+  * `filter_type`: Logical matching rule (`all` or `any`, default is `all`).
 
-Retrieve episodes with optional filtering by month, subject, and color.
-
-- **URL**: `/episodes`
-- **Methods**: `GET`
-- **Query Parameters**:
-    - `month`: Month number (1-12) or full month name (e.g., "January").
-    - `subject`: Comma-separated list of subjects (e.g., "mountain,lake").
-    - `color`: Comma-separated list of colors (e.g., "black_gesso,bright_red").
-    - `filter_type`: Type of filtering (`all` or `any`, default is `all`).
-  
-**Example Request**:
+**Example Request:**
+```bash
+GET /episodes?month=1&subject=mountain,lake&color=black_gesso,bright_red&filter_type=any
 
 ```bash
 GET /episodes?month=1&subject=mountain,lake&color=black_gesso,bright_red&filter_type=any
@@ -80,5 +73,31 @@ Example Response:
 ]
 ```
 
-### Author
-[Jesse Brumley](https://github.com/jessebrumley)
+## Local Setup & Installation
+### Clone the Repository:
+
+```bash
+git clone [https://github.com/jessebrumley/bob-ross-paintings-api.git](https://github.com/jessebrumley/bob-ross-paintings-api.git)
+cd bob-ross-paintings-api
+```
+### Install Dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+### Configure the Database:
+* Ensure MySQL server is running locally.
+* Create the database: CREATE DATABASE bob_ross_paintings;
+* Import the schema and seed data from jop_sql.sql or run the ETL pipeline scripts in etl_data_transformation/.
+* Update database credentials in app.py under db_config.
+
+### Run the Application:
+```bash
+python app.py
+```
+The API will be accessible at http://localhost:5000.
+
+## Author
+
+**Jesse Brumley**  
+[GitHub](https://github.com/jessebrumley) | [Website](https://hirejesse.dev) | [LinkedIn](https://linkedin.com/in/jessebrumley)
